@@ -44,6 +44,7 @@ coverage/
 
 # Ignore your custom error log
 error_log.txt
+bridge_error_log.txt
 
 # Ignore other sensitive or deployment-specific files
 animation.json.backup
