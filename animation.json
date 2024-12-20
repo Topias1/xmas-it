@@ -1,0 +1,452 @@
+{
+    "candle": {
+      "speed": {
+        "min": 1000,
+        "max": 2000
+      },
+      "hue": {
+        "min": 2500,
+        "max": 7500
+      },
+      "bri": {
+        "min": 50,
+        "max": 100
+      },
+      "sat": {
+        "min": 234,
+        "max": 254
+      }
+    },
+    "rainbow": {
+      "speed": {
+        "min": 500,
+        "max": 1000
+      },
+      "hue": {
+        "min": 0,
+        "max": 65535
+      },
+      "bri": {
+        "min": 0,
+        "max": 100
+      },
+      "sat": {
+        "min": 150,
+        "max": 254
+      }
+    },
+    "pulse": {
+      "speed": {
+        "min": 1500,
+        "max": 2500
+      },
+      "hue": {
+        "min": 3000,
+        "max": 5000
+      },
+      "bri": {
+        "min": 30,
+        "max": 80
+      },
+      "sat": {
+        "min": 200,
+        "max": 254
+      }
+    },
+    "soft_glow": {
+      "speed": {
+        "min": 3000,
+        "max": 5000
+      },
+      "hue": {
+        "min": 3000,
+        "max": 6000
+      },
+      "bri": {
+        "min": 10,
+        "max": 30
+      },
+      "sat": {
+        "min": 180,
+        "max": 230
+      }
+    },
+    "smooth_wave": {
+      "speed": {
+        "min": 2000,
+        "max": 3500
+      },
+      "hue": {
+        "min": 1000,
+        "max": 4000
+      },
+      "bri": {
+        "min": 40,
+        "max": 70
+      },
+      "sat": {
+        "min": 180,
+        "max": 220
+      }
+    },
+    "blaze": {
+      "speed": {
+        "min": 300,
+        "max": 800
+      },
+      "hue": {
+        "min": 10000,
+        "max": 40000
+      },
+      "bri": {
+        "min": 200,
+        "max": 254
+      },
+      "sat": {
+        "min": 200,
+        "max": 254
+      }
+    },
+    "flicker": {
+      "speed": {
+        "min": 500,
+        "max": 1500
+      },
+      "hue": {
+        "min": 1000,
+        "max": 8000
+      },
+      "bri": {
+        "min": 5,
+        "max": 50
+      },
+      "sat": {
+        "min": 180,
+        "max": 230
+      }
+    },
+    "strobe": {
+      "speed": {
+        "min": 100,
+        "max": 500
+      },
+      "hue": {
+        "min": 0,
+        "max": 65535
+      },
+      "bri": {
+        "min": 200,
+        "max": 254
+      },
+      "sat": {
+        "min": 254,
+        "max": 254
+      }
+    },
+    "fireworks": {
+      "speed": {
+        "min": 300,
+        "max": 700
+      },
+      "hue": {
+        "min": 1500,
+        "max": 8000
+      },
+      "bri": {
+        "min": 50,
+        "max": 254
+      },
+      "sat": {
+        "min": 180,
+        "max": 254
+      }
+    },
+    "storm": {
+      "speed": {
+        "min": 700,
+        "max": 1500
+      },
+      "hue": {
+        "min": 5000,
+        "max": 12000
+      },
+      "bri": {
+        "min": 50,
+        "max": 150
+      },
+      "sat": {
+        "min": 150,
+        "max": 230
+      }
+    },
+    "sunrise": {
+      "speed": {
+        "min": 4000,
+        "max": 7000
+      },
+      "hue": {
+        "min": 2000,
+        "max": 4000
+      },
+      "bri": {
+        "min": 10,
+        "max": 50
+      },
+      "sat": {
+        "min": 150,
+        "max": 180
+      }
+    },
+    "wave": {
+      "speed": {
+        "min": 1000,
+        "max": 3000
+      },
+      "hue": {
+        "min": 2000,
+        "max": 10000
+      },
+      "bri": {
+        "min": 50,
+        "max": 150
+      },
+      "sat": {
+        "min": 180,
+        "max": 220
+      }
+    },
+    "dynamic_flash": {
+      "speed": {
+        "min": 200,
+        "max": 1000
+      },
+      "hue": {
+        "min": 10000,
+        "max": 50000
+      },
+      "bri": {
+        "min": 150,
+        "max": 254
+      },
+      "sat": {
+        "min": 180,
+        "max": 254
+      }
+    },
+    "heartbeat": {
+      "speed": {
+        "min": 2000,
+        "max": 4000
+      },
+      "hue": {
+        "min": 3000,
+        "max": 6000
+      },
+      "bri": {
+        "min": 50,
+        "max": 120
+      },
+      "sat": {
+        "min": 150,
+        "max": 220
+      }
+    },
+    "flash": {
+      "speed": {
+        "min": 100,
+        "max": 300
+      },
+      "hue": {
+        "min": 5000,
+        "max": 10000
+      },
+      "bri": {
+        "min": 100,
+        "max": 254
+      },
+      "sat": {
+        "min": 200,
+        "max": 254
+      }
+    },
+    "soft_wave": {
+      "speed": {
+        "min": 3000,
+        "max": 6000
+      },
+      "hue": {
+        "min": 1500,
+        "max": 5000
+      },
+      "bri": {
+        "min": 20,
+        "max": 60
+      },
+      "sat": {
+        "min": 150,
+        "max": 200
+      }
+    },
+    "color_burst": {
+      "speed": {
+        "min": 500,
+        "max": 1000
+      },
+      "hue": {
+        "min": 0,
+        "max": 65535
+      },
+      "bri": {
+        "min": 100,
+        "max": 254
+      },
+      "sat": {
+        "min": 200,
+        "max": 254
+      }
+    },
+    "flash_wave": {
+      "speed": {
+        "min": 300,
+        "max": 700
+      },
+      "hue": {
+        "min": 0,
+        "max": 10000
+      },
+      "bri": {
+        "min": 50,
+        "max": 200
+      },
+      "sat": {
+        "min": 200,
+        "max": 254
+      }
+    },
+    "moonlight": {
+      "speed": {
+        "min": 5000,
+        "max": 10000
+      },
+      "hue": {
+        "min": 1000,
+        "max": 3000
+      },
+      "bri": {
+        "min": 5,
+        "max": 50
+      },
+      "sat": {
+        "min": 100,
+        "max": 150
+      }
+    },
+    "dynamic_rise": {
+      "speed": {
+        "min": 800,
+        "max": 1500
+      },
+      "hue": {
+        "min": 1000,
+        "max": 5000
+      },
+      "bri": {
+        "min": 100,
+        "max": 254
+      },
+      "sat": {
+        "min": 150,
+        "max": 254
+      }
+    },
+    "icy_blue": {
+      "speed": {
+        "min": 2000,
+        "max": 4000
+      },
+      "hue": {
+        "min": 35000,
+        "max": 45000
+      },
+      "bri": {
+        "min": 50,
+        "max": 200
+      },
+      "sat": {
+        "min": 200,
+        "max": 254
+      }
+    },
+    "autumn_warmth": {
+      "speed": {
+        "min": 1500,
+        "max": 3000
+      },
+      "hue": {
+        "min": 10000,
+        "max": 15000
+      },
+      "bri": {
+        "min": 100,
+        "max": 180
+      },
+      "sat": {
+        "min": 180,
+        "max": 254
+      }
+    },
+    "tropical_breeze": {
+      "speed": {
+        "min": 2500,
+        "max": 5000
+      },
+      "hue": {
+        "min": 40000,
+        "max": 50000
+      },
+      "bri": {
+        "min": 70,
+        "max": 140
+      },
+      "sat": {
+        "min": 150,
+        "max": 230
+      }
+    },
+    "cosmic_wave": {
+      "speed": {
+        "min": 300,
+        "max": 900
+      },
+      "hue": {
+        "min": 0,
+        "max": 65535
+      },
+      "bri": {
+        "min": 100,
+        "max": 254
+      },
+      "sat": {
+        "min": 200,
+        "max": 254
+      }
+    },
+    "calm_dawn": {
+      "speed": {
+        "min": 4000,
+        "max": 7000
+      },
+      "hue": {
+        "min": 2000,
+        "max": 4500
+      },
+      "bri": {
+        "min": 10,
+        "max": 80
+      },
+      "sat": {
+        "min": 150,
+        "max": 200
+      }
+    }
+  }

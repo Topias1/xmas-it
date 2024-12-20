@@ -1,0 +1,49 @@
+# Ignore environment files
+.env
+
+# Ignore vendor directory (for Composer)
+vendor/
+
+# Ignore Composer lock file (optional, if you don’t want to commit it)
+composer.lock
+
+# Ignore IDE-specific files
+.idea/
+*.sublime-project
+*.sublime-workspace
+.vscode/
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore log files
+*.log
+
+# Ignore cache and temporary files
+cache/
+*.tmp
+*.swp
+
+# Ignore error logs
+error_log
+
+# Ignore PHPUnit test results
+phpunit.xml
+phpunit.xml.dist
+
+# Ignore node_modules (if using Node.js)
+node_modules/
+
+# Ignore any generated coverage reports
+coverage/
+
+# Ignore deployment files
+*.zip
+*.tar.gz
+
+# Ignore your custom error log
+error_log.txt
+
+# Ignore other sensitive or deployment-specific files
+animation.json.backup
