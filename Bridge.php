@@ -1,189 +1,79 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
-use Dotenv\Dotenv;
+declare(strict_types=1);
 
-$dotenv = Dotenv::createImmutable(__DIR__);
-$dotenv->load();
-
-// Instantiate the Http handler and pass it to the Bridge class
 require_once __DIR__ . '/Http.php';
 
 /**
- * Class Bridge
- * Manages connections and operations with Philips Hue lights.
+ * Thin wrapper around the Philips Hue bridge REST API (v1).
  */
-class Bridge {
-    private $ip;
-    private $token;
-    private $http;
+final class Bridge
+{
+    private readonly string $baseUrl;
 
-    /**
-     * Bridge constructor.
-     * Initializes the bridge IP, token, and HTTP handler.
-     */
-    public function __construct() {
-        $this->ip = ($_ENV['DEV'] ? $_ENV['HUE_BRIDGE_LOCAL_IP'] : $_ENV['HUE_BRIDGE_REMOTE_IP']);
-        $this->token = $_ENV['HUE_TOKEN'];
-        $this->http = new Http();
-
-        $this->validateBridgeConnection();
+    public function __construct(string $ip, string $token, private readonly Http $http = new Http())
+    {
+        if ($ip === '' || $token === '') {
+            throw new InvalidArgumentException('HUE_BRIDGE_IP and HUE_TOKEN must be set.');
+        }
+        $this->baseUrl = sprintf('http://%s/api/%s', $ip, rawurlencode($token));
     }
 
     /**
-     * Validates the connection to the Philips Hue Bridge.
-     *
-     * @throws Exception If the bridge is unreachable or credentials are invalid.
+     * Fails fast if the bridge is unreachable or the token is not authorized.
+     * (`/config` answers even to unknown tokens, so `/lights` is used instead.)
      */
-    private function validateBridgeConnection() {
-        $url = sprintf('http://%s/api/%s/config', $this->ip, $this->token);
+    public function assertReachable(): void
+    {
+        $this->getLights();
+    }
 
-        try {
-            $response = $this->http->get($url);
-            if (!isset($response['name'])) {
-                $this->logError("Invalid response from Hue Bridge: " . json_encode($response));
-                throw new Exception("Unable to connect to the Hue Bridge. Check your IP and token.");
-            }
-        } catch (Exception $e) {
-            $this->logError($e->getMessage());
-            throw new Exception("Bridge validation failed: " . $e->getMessage());
-        }
+    /** @return array<string, array<mixed>> Lights keyed by ID. */
+    public function getLights(): array
+    {
+        return $this->call('GET', '/lights');
+    }
+
+    /** @param array<string, mixed> $state */
+    public function setState(string $lightId, array $state): void
+    {
+        $this->call('PUT', '/lights/' . rawurlencode($lightId) . '/state', $state);
+    }
+
+    public function turnOn(string $lightId): void
+    {
+        $this->setState($lightId, ['on' => true]);
+    }
+
+    public function turnOff(string $lightId): void
+    {
+        $this->setState($lightId, ['on' => false]);
     }
 
     /**
-     * Generates the API URL for a specific light.
+     * The Hue API reports errors with HTTP 200 and a body like
+     * [{"error": {"type": 1, "description": "unauthorized user"}}].
      *
-     * @param string $lightId The ID of the light.
-     * @return string The API URL for the light.
+     * @param array<string, mixed>|null $data
+     * @return array<mixed>
      */
-    private function getUrl($lightId) {
-        $this->validateLightId($lightId);
-        return sprintf('http://%s/api/%s/lights/%s/state', $this->ip, $this->token, $lightId);
-    }
+    private function call(string $method, string $path, ?array $data = null): array
+    {
+        $url = $this->baseUrl . $path;
+        $response = $method === 'GET' ? $this->http->get($url) : $this->http->put($url, $data ?? []);
 
-    /**
-     * Turns on a light.
-     *
-     * @param string $lightId The ID of the light.
-     * @return array|null The API response as an associative array, or null on failure.
-     * @throws Exception If the operation fails.
-     */
-    public function turnOnLight($lightId) {
-        try {
-            $url = $this->getUrl($lightId);
-            $data = ["on" => true];
-            return $this->http->put($url, $data);
-        } catch (Exception $e) {
-            $this->logError("Failed to turn on light $lightId: " . $e->getMessage());
-            throw $e;
+        $errors = array_filter(
+            array_is_list($response) ? $response : [],
+            static fn ($item) => is_array($item) && isset($item['error']),
+        );
+        if ($errors !== []) {
+            $messages = array_map(
+                static fn ($item) => ($item['error']['description'] ?? 'unknown error'),
+                $errors,
+            );
+            throw new RuntimeException("Hue bridge error on $path: " . implode('; ', $messages));
         }
-    }
 
-    /**
-     * Turns off a light.
-     *
-     * @param string $lightId The ID of the light.
-     * @return array|null The API response as an associative array, or null on failure.
-     * @throws Exception If the operation fails.
-     */
-    public function turnOffLight($lightId) {
-        try {
-            $url = $this->getUrl($lightId);
-            $data = ["on" => false];
-            return $this->http->put($url, $data);
-        } catch (Exception $e) {
-            $this->logError("Failed to turn off light $lightId: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Sets the color, brightness, and saturation of a light.
-     *
-     * @param string $lightId The ID of the light.
-     * @param int $hue The hue value (0-65535).
-     * @param int $brightness The brightness value (0-254).
-     * @param int $saturation The saturation value (0-254).
-     * @return array|null The API response as an associative array, or null on failure.
-     * @throws Exception If the operation fails.
-     */
-    public function setLightColor($lightId, $hue, $brightness, $saturation) {
-        $this->validateColorValues($hue, $brightness, $saturation);
-
-        try {
-            $url = $this->getUrl($lightId);
-            $data = [
-                "hue" => $hue,
-                "bri" => $brightness,
-                "sat" => $saturation
-            ];
-            return $this->http->put($url, $data);
-        } catch (Exception $e) {
-            $this->logError("Failed to set light color for $lightId: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Retrieves the list of available lights from the bridge.
-     *
-     * @return array|null The list of lights as an associative array, or null on failure.
-     * @throws Exception If the operation fails.
-     */
-    public function getAvailableLights() {
-        try {
-            $url = sprintf('http://%s/api/%s/lights', $this->ip, $this->token);
-            return $this->http->get($url);
-        } catch (Exception $e) {
-            $this->logError("Failed to retrieve available lights: " . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Validates the light ID.
-     *
-     * @param string $lightId The light ID to validate.
-     * @throws Exception If the light ID is invalid.
-     */
-    private function validateLightId($lightId) {
-        if (!is_string($lightId) || empty($lightId)) {
-            $this->logError("Invalid light ID: $lightId");
-            throw new Exception("Invalid light ID: $lightId");
-        }
-    }
-
-    /**
-     * Validates color values for lights.
-     *
-     * @param int $hue The hue value.
-     * @param int $brightness The brightness value.
-     * @param int $saturation The saturation value.
-     * @throws Exception If any value is out of range.
-     */
-    private function validateColorValues($hue, $brightness, $saturation) {
-        if ($hue < 0 || $hue > 65535) {
-            $this->logError("Invalid hue value: $hue. Expected range is 0 to 65535.");
-            throw new Exception("Invalid hue value: $hue. Expected range is 0 to 65535.");
-        }
-        if ($brightness < 0 || $brightness > 254) {
-            $this->logError("Invalid brightness value: $brightness. Expected range is 0 to 254.");
-            throw new Exception("Invalid brightness value: $brightness. Expected range is 0 to 254.");
-        }
-        if ($saturation < 0 || $saturation > 254) {
-            $this->logError("Invalid saturation value: $saturation. Expected range is 0 to 254.");
-            throw new Exception("Invalid saturation value: $saturation. Expected range is 0 to 254.");
-        }
-    }
-
-    /**
-     * Logs an error message to a file.
-     *
-     * @param string $message The error message to log.
-     * @return void
-     */
-    private function logError($message) {
-        $timestamp = date('Y-m-d H:i:s');
-        file_put_contents('bridge_error_log.txt', "[$timestamp] $message\n", FILE_APPEND);
+        return $response;
     }
 }

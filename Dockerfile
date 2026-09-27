@@ -1,11 +1,12 @@
-# Use an official PHP image with Apache
-FROM php:8.2-apache
+FROM composer:2 AS vendor
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader
 
-# Set working directory
-WORKDIR /var/www/html
-
-# Copy project files to the container
-COPY . /var/www/html
-
-# Expose port 80 to access the app
-EXPOSE 80
+FROM php:8.3-cli-alpine
+RUN docker-php-ext-install pcntl
+WORKDIR /app
+COPY --from=vendor /app/vendor ./vendor
+COPY *.php animation.json ./
+USER nobody
+CMD ["php", "main.php"]
