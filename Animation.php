@@ -1,95 +1,81 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
-use Dotenv\Dotenv;
-$dotenv = Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+declare(strict_types=1);
 
 require_once __DIR__ . '/Bridge.php';
-$bridge = new Bridge();
 
 /**
- * Class Animation
- * Handles animations for a set of lights connected to a Philips Hue bridge.
+ * Plays random effects from animation.json on a set of Hue lights, forever.
+ *
+ * Each effect defines min/max ranges for:
+ *   - speed: delay in milliseconds between two light updates (also used as fade time)
+ *   - hue:   0..65535
+ *   - bri:   0..254
+ *   - sat:   0..254
  */
-class Animation {
-    /**
-     * @var Bridge The bridge instance used to communicate with the lights.
-     */
-    private $bridge;
+final class Animation
+{
+    private const LIMITS = [
+        'speed' => [1, 60000],
+        'hue' => [0, 65535],
+        'bri' => [0, 254],
+        'sat' => [0, 254],
+    ];
+
+    /** Delay before retrying after an error, to avoid hammering the bridge. */
+    private const ERROR_BACKOFF_SECONDS = 5;
+
+    private bool $running = true;
 
     /**
-     * @var array The configuration for various animations, loaded from a JSON file.
+     * @param string[] $lights Light IDs to animate.
+     * @param array<string, array<string, array{min: int, max: int}>> $effects
      */
-    private $animations;
-
-    /**
-     * @var array The list of light IDs to be controlled.
-     */
-    private $lights;
-
-    /**
-     * @var int Minimum effect duration in seconds
-     */
-    private $minimumDuration;
-
-    /**
-     * @var int Maximum effect duration in seconds
-     */
-    private $maximumDuration;
-
-    /**
-     * Animation constructor.
-     * Initializes the bridge and loads animation configurations.
-     *
-     * @param Bridge $bridge The bridge instance used to control the lights.
-     * @throws Exception If the animation configuration file cannot be loaded or contains invalid JSON.
-     */
-    public function __construct(Bridge $bridge) {
-        $this->bridge = $bridge;
-        $this->lights = explode('|', $_ENV['LIGHTS']);
-        $json = file_get_contents('animation.json');
-        if ($json === false) {
-            throw new Exception("Unable to load animation configuration file.");
+    public function __construct(
+        private readonly Bridge $bridge,
+        private readonly array $lights,
+        private readonly array $effects,
+        private readonly int $minDuration,
+        private readonly int $maxDuration,
+        private readonly bool $debug = false,
+    ) {
+        if ($lights === []) {
+            throw new InvalidArgumentException('LIGHTS must contain at least one light ID.');
         }
-        $this->animations = $this->validateJson(file_get_contents('animation.json'));
-        $this->minimumDuration = $_ENV['MIN_DURATION'];
-        $this->maximumDuration = $_ENV['MAX_DURATION'];
+        if ($effects === []) {
+            throw new InvalidArgumentException('No effect defined in the animation file.');
+        }
+        if ($minDuration < 1 || $minDuration > $maxDuration) {
+            throw new InvalidArgumentException('Expected 1 <= MIN_DURATION <= MAX_DURATION.');
+        }
     }
 
     /**
-     * Validates and parses the animation JSON file.
+     * Loads and validates an effects file.
      *
-     * @param string $json The JSON content to validate.
-     * @return array Parsed JSON data.
-     * @throws Exception If the JSON is invalid or does not match the required schema.
+     * @return array<string, array<string, array{min: int, max: int}>>
      */
-    private function validateJson($json) {
-        $data = json_decode($json, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("Invalid JSON format: " . json_last_error_msg());
+    public static function loadEffects(string $path): array
+    {
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            throw new RuntimeException("Unable to read animation file: $path");
         }
 
-        $requiredKeys = ['speed', 'hue', 'bri', 'sat'];
-        foreach ($data as $animation => $properties) {
-            foreach ($requiredKeys as $key) {
-                if (!isset($properties[$key])) {
-                    throw new Exception("Missing key '$key' in animation '$animation'");
+        $data = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($data) || array_is_list($data)) {
+            throw new RuntimeException('Animation file must be a JSON object of named effects.');
+        }
+
+        foreach ($data as $name => $effect) {
+            foreach (self::LIMITS as $key => [$lower, $upper]) {
+                $min = $effect[$key]['min'] ?? null;
+                $max = $effect[$key]['max'] ?? null;
+                if (!is_int($min) || !is_int($max)) {
+                    throw new RuntimeException("Effect '$name': '$key.min' and '$key.max' must be integers.");
                 }
-
-                foreach (['min', 'max'] as $subKey) {
-                    if (!isset($properties[$key][$subKey])) {
-                        throw new Exception("Missing '$subKey' for '$key' in animation '$animation'");
-                    }
-
-                    if (!is_int($properties[$key][$subKey])) {
-                        throw new Exception("'$subKey' for '$key' in animation '$animation' must be an integer.");
-                    }
-                }
-
-                if ($properties[$key]['min'] > $properties[$key]['max']) {
-                    throw new Exception("'min' must be less than 'max' for '$key' in animation '$animation'");
+                if ($min > $max || $min < $lower || $max > $upper) {
+                    throw new RuntimeException("Effect '$name': expected $lower <= $key.min <= $key.max <= $upper.");
                 }
             }
         }
@@ -98,79 +84,100 @@ class Animation {
     }
 
     /**
-     * Loads a random animation effect on the lights defined in the configuration.
-     *
-     * @return void
+     * Runs random effects until SIGINT/SIGTERM, then turns the lights off.
      */
-    public function loadEffect() {
-        foreach ($this->lights as $lightId) {
-            $this->bridge->turnOnLight($lightId);
-        }
-        $animationNames = array_keys($this->animations);
-        $randomAnimationName = $animationNames[array_rand($animationNames)];
-        $config = $this->animations[$randomAnimationName];
-        $duration = rand($this->minimumDuration, $this->maximumDuration);
+    public function run(): void
+    {
+        $this->installSignalHandlers();
 
-        for ($i = 0; $i < $duration; $i++) {
-            foreach ($this->lights as $lightId) {
-                $speed = rand($config['speed']['min'], $config['speed']['max']);
-                $hue = rand($config['hue']['min'], $config['hue']['max']);
-                $brightness = rand($config['bri']['min'], $config['bri']['max']);
-                $saturation = rand($config['sat']['min'], $config['sat']['max']);
-                $response = $this->bridge->setLightColor($lightId, $hue, $brightness, $saturation);
-                usleep($speed);
-            }
-        }
-    }
-
-    /**
-     * Launches an infinite animation loop on the lights defined in the configuration.
-     *
-     * @return void
-     */
-    public function launch() {
-        while (true) {
+        while ($this->running) {
             try {
-                $this->loadEffect();
-            } catch (Exception $e) {
-                $this->logError($e->getMessage());
-                echo "An error occurred: " . $e->getMessage() . "\n";
+                $this->playRandomEffect();
+            } catch (Throwable $e) {
+                self::log('Error: ' . $e->getMessage());
+                $this->sleepMs(self::ERROR_BACKOFF_SECONDS * 1000);
+            }
+        }
+
+        $this->turnAllOff();
+    }
+
+    private function playRandomEffect(): void
+    {
+        $name = array_rand($this->effects);
+        $effect = $this->effects[$name];
+        $duration = random_int($this->minDuration, $this->maxDuration);
+        self::log("Playing '$name' for {$duration}s");
+
+        foreach ($this->lights as $lightId) {
+            $this->bridge->turnOn($lightId);
+        }
+
+        $end = microtime(true) + $duration;
+        while ($this->running && microtime(true) < $end) {
+            foreach ($this->lights as $lightId) {
+                if (!$this->running || microtime(true) >= $end) {
+                    return;
+                }
+                $speed = $this->pick($effect['speed']);
+                $state = [
+                    'hue' => $this->pick($effect['hue']),
+                    'bri' => $this->pick($effect['bri']),
+                    'sat' => $this->pick($effect['sat']),
+                    // Hue transition time is in 100 ms steps.
+                    'transitiontime' => intdiv($speed, 100),
+                ];
+                if ($this->debug) {
+                    self::log("  light $lightId " . json_encode($state));
+                }
+                $this->bridge->setState($lightId, $state);
+                $this->sleepMs($speed);
             }
         }
     }
 
-    /**
-     * Outputs debug information for a request to the lights.
-     *
-     * @param int $lightId The ID of the light being controlled.
-     * @param int $hue The hue value for the light color.
-     * @param int $bri The brightness value for the light.
-     * @param int $sat The saturation value for the light.
-     * @return void
-     */
-    private function debugRequest($lightId, $hue, $bri, $sat) {
-        echo "Light ID: $lightId | Hue: $hue | Brightness: $bri | Saturation: $sat\n";
+    /** @param array{min: int, max: int} $range */
+    private function pick(array $range): int
+    {
+        return random_int($range['min'], $range['max']);
     }
 
-    /**
-     * Outputs debug information for a response from the lights.
-     *
-     * @param int $lightId The ID of the light being controlled.
-     * @param mixed $response The response from the bridge.
-     * @return void
-     */
-    private function debugResponse($lightId, $response) {
-        echo "Response for Light ID $lightId: " . json_encode($response) . "\n";
+    private function turnAllOff(): void
+    {
+        foreach ($this->lights as $lightId) {
+            try {
+                $this->bridge->turnOff($lightId);
+            } catch (Throwable $e) {
+                self::log("Could not turn off light $lightId: " . $e->getMessage());
+            }
+        }
+        self::log('Lights off, bye.');
     }
 
-    /**
-     * Logs an error message to a file.
-     *
-     * @param string $message The error message to log.
-     * @return void
-     */
-    private function logError($message) {
-        $timestamp = date('Y-m-d H:i:s');
-        file_put_contents('error_log.txt', "[$timestamp] $message\n", FILE_APPEND);
+    private function installSignalHandlers(): void
+    {
+        if (!function_exists('pcntl_signal')) {
+            return;
+        }
+        pcntl_async_signals(true);
+        $stop = function (): void {
+            $this->running = false;
+        };
+        pcntl_signal(SIGINT, $stop);
+        pcntl_signal(SIGTERM, $stop);
+    }
+
+    /** Sleeps in small slices so a stop signal is honoured quickly. */
+    private function sleepMs(int $ms): void
+    {
+        $end = microtime(true) + $ms / 1000;
+        while ($this->running && ($left = $end - microtime(true)) > 0) {
+            usleep((int) (min($left, 0.1) * 1_000_000));
+        }
+    }
+
+    public static function log(string $message): void
+    {
+        fwrite(STDERR, '[' . date('Y-m-d H:i:s') . "] $message\n");
     }
 }
