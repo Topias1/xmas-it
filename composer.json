@@ -2,6 +2,7 @@
     "name": "topias1/xmas-it",
     "description": "POC: animate Philips Hue light strips as Christmas tree garlands.",
     "type": "project",
+    "license": "MIT",
     "require": {
         "php": ">=8.2",
         "ext-curl": "*",

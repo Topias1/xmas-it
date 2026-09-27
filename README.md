@@ -100,3 +100,7 @@ The file is validated at startup; an invalid effect stops the script with an exp
 - Uses the Hue REST API v1: a strip is a single light, so the whole strip changes colour at once. Per-segment control on Gradient strips would need the Hue Entertainment API.
 - The bridge handles roughly 10 light commands per second. Keep `speed` values above ~100 ms, especially with many lights, or updates will be dropped.
 - **Security:** never expose your bridge to the internet (port forwarding). The API is plain HTTP and the token gives full control of your lights. Keep `.env` out of git (it is already in `.gitignore`).
+
+## License
+
+[MIT](LICENSE)
